@@ -1,0 +1,103 @@
+DECLARATIONS fog_global
+	include global
+{{
+
+}}
+
+DECLARATIONS fog_functions
+	include fog_global
+	include screen_space_global_illumination
+{{
+	float4 ApplyGlobalFog(float4 iPosition, float4 iColour)
+	{
+		float4 oFogValue = 0.f;
+
+		[branch] if ( fog_exp_enabled )
+		{
+			float height;
+			[branch] if ( fog_vals_exp.z > 0.f )
+			{
+				height = camera_position.z + fog_vals_exp.x;
+			}
+			else
+			{
+				height = fog_vals_exp.x;
+			}
+
+			float fog;
+			CalculateFog( iPosition, height, fog_vals_exp.y, fog );
+			fog = saturate( pow( fog, fog_vals_exp.w ) );
+
+			#if defined( ADDITIVE_BLEND ) || defined( MULTIPLICITIVE_BLEND ) || defined( SUBTRACTIVE_BLEND )
+				oFogValue = fog;
+			#else
+				oFogValue = saturate( float4( fog_colour_exp * fog, fog ) );
+			#endif
+		}
+
+		[branch] if ( fog_linear_enabled )
+		{
+			float height;
+			[branch] if ( fog_vals_linear.z > 0.f )
+			{
+				height = camera_position.z + fog_vals_linear.x;
+			}
+			else
+			{
+				height = fog_vals_linear.x;
+			}
+
+			float fog;
+			CalculateFog( iPosition, height, fog_vals_linear.y, fog );
+
+			#if defined( ADDITIVE_BLEND ) || defined( MULTIPLICITIVE_BLEND ) || defined( SUBTRACTIVE_BLEND )
+				oFogValue = saturate( oFogValue + fog );
+			#else
+				oFogValue = saturate( float4( oFogValue.rgb + fog_colour_linear * fog, oFogValue.a + fog ) );
+			#endif
+		}
+
+		float4 oColour;
+		#if defined( ADDITIVE_BLEND )
+			oColour = float4( iColour.rgb * ( 1.0f - oFogValue.rgb ), iColour.a ); // keep the alpha value the same so it will work correctly with alpha testing
+		#elif defined( MULTIPLICITIVE_BLEND ) || defined( SUBTRACTIVE_BLEND )
+			oColour = float4( iColour.rgb, iColour.a * ( 1.0f - oFogValue.a ) );
+		#elif defined( PREMULTIPLIED_ALPHA_BLEND )
+			oColour = float4( lerp( iColour.rgb, oFogValue.rgb * iColour.a, oFogValue.a ), iColour.a );
+		#else
+			oColour = float4( iColour.rgb * ( 1.f - oFogValue.a ) + oFogValue.rgb, iColour.a );
+		#endif
+		return oColour;
+	}
+}}
+
+FRAGMENT fog
+	include fog_functions
+	inout SurfaceData surfaceData : surface_data
+	inout EmissionData emissionData : emission_data
+{{
+	emissionData.pixel_color = ApplyGlobalFog(float4(surfaceData.world_pos, 1.0f), emissionData.pixel_color);
+}}
+
+
+
+FRAGMENT fog_custom_pos
+	include fog_functions
+	inout SurfaceData surfaceData : surface_data
+	inout EmissionData emissionData : emission_data
+{{
+	emissionData.pixel_color = ApplyGlobalFog(float4(surfaceData.world_pos, 1.0f), emissionData.pixel_color);
+}}
+
+// deprecated fragments
+FRAGMENT fog_linear
+{{
+}}
+
+FRAGMENT fog_exp
+{{
+}}
+
+FRAGMENT end_fog
+{{
+}}
