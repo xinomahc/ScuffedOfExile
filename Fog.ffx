@@ -1,7 +1,14 @@
 DECLARATIONS fog_global
 	include global
 {{
-
+	void CalculateFog( float4 iPosition, float height, float in_fog_length, out float out_fog )
+	{
+		float3 to_camera = iPosition.xyz - camera_position;
+		float fog_depth = iPosition.z - height;
+		float to_cam_percent = saturate( fog_depth / abs( to_camera.z ) );
+		float fog_length = length( to_camera ) * to_cam_percent;
+		out_fog = saturate( fog_length / in_fog_length );
+	}
 }}
 
 DECLARATIONS fog_functions
@@ -86,7 +93,6 @@ FRAGMENT fog_custom_pos
 	inout SurfaceData surfaceData : surface_data
 	inout EmissionData emissionData : emission_data
 {{
-	emissionData.pixel_color = ApplyGlobalFog(float4(surfaceData.world_pos, 1.0f), emissionData.pixel_color);
 }}
 
 // deprecated fragments
