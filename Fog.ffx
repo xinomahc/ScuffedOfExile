@@ -93,6 +93,7 @@ FRAGMENT fog_custom_pos
 	inout SurfaceData surfaceData : surface_data
 	inout EmissionData emissionData : emission_data
 {{
+	emissionData.pixel_color = ApplyGlobalFog(float4(surfaceData.world_pos, 1.0f), emissionData.pixel_color);
 }}
 
 // deprecated fragments
